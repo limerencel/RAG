@@ -176,12 +176,12 @@ def create_rag_chain(vectorstore, model):
         print(f"Error setting up retriever: {str(e)}")
         raise
     
-    # Define prompt template
+    # Create prompt template
     print("Creating prompt template...")
-    sec_filings_prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a helpful financial assistant that answers questions based on SEC filings.
-        Answer the question based ONLY on the following context from SEC filings. If you don't know or can't find the answer in the context, say so.
-        Be precise and cite specific figures, dates, and statements from the documents when possible.
+    general_docs_prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a helpful assistant that answers questions based on the provided documents.
+        Answer the question based ONLY on the following context from the documents. If you don't know or can't find the answer in the context, say so.
+        Be precise and cite specific information from the documents when possible.
         
         Context:
         {context}"""),
@@ -191,7 +191,7 @@ def create_rag_chain(vectorstore, model):
     # Create document chain
     print("Creating document chain...")
     try:
-        document_chain = create_stuff_documents_chain(model, sec_filings_prompt)
+        document_chain = create_stuff_documents_chain(model, general_docs_prompt)
         print("Document chain created successfully")
     except Exception as e:
         print(f"Error creating document chain: {str(e)}")
@@ -298,7 +298,7 @@ class RAGChat:
 def main():
     print("\n=== Starting RAG Application ===\n")
     # Set up paths (modify these to your actual paths)
-    directory = r"E:\AI\sec-edgar-filings\GOOGL\10-K"  # Directory with SEC filings
+    directory = r"./test_docs"  # Directory with documents (default to test docs)
     persist_dir = "./chroma_db"         # Directory to persist vector database
     history_file = "rag_conversation_history.pkl" # File to save conversation history
     

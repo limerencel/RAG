@@ -1,6 +1,6 @@
-# Financial Document RAG
+# General-Purpose Document RAG
 
-A Retrieval-Augmented Generation (RAG) system for querying information from financial documents, specifically SEC 10-K filings.
+A Retrieval-Augmented Generation (RAG) system for querying information from any collection of documents.
 
 ## Setup
 
@@ -42,7 +42,7 @@ A Retrieval-Augmented Generation (RAG) system for querying information from fina
 1. Update the `directory` variable in `main.py` to point to your document directory:
 
    ```python
-   directory = r"path/to/your/documents"  # Directory with financial documents
+   directory = r"path/to/your/documents"  # Directory with your documents
    ```
 
 2. Run the application:
@@ -85,3 +85,13 @@ This RAG application follows these steps:
 
 - The vector database is persisted to `./chroma_db/`
 - Conversation history is saved to `rag_conversation_history.pkl`
+
+## Supported Document Types
+
+The system supports various file formats:
+
+- Text files (.txt)
+- PDFs (using PyPDFLoader)
+- Other document types (using UnstructuredFileLoader)
+
+You can extend the system to support additional file types by adding appropriate document loaders.
