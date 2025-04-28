@@ -9,7 +9,7 @@ fi
 
 # Install the package
 echo "Installing RAGChat CLI tool..."
-pip install -e .
+python3 -m pip install -e .
 
 # Check if installation was successful
 if [ $? -eq 0 ]; then
@@ -24,4 +24,6 @@ if [ $? -eq 0 ]; then
     echo "XAI_API_KEY=your-api-key-here"
 else
     echo "Installation failed. Please check the error messages above."
+    echo "Try using: python3 -m pip install --upgrade pip"
+    echo "Then run the install script again."
 fi 

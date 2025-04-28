@@ -14,6 +14,8 @@ if %ERRORLEVEL% equ 0 (
     echo XAI_API_KEY=your-api-key-here
 ) else (
     echo Installation failed. Please check the error messages above.
+    echo Try using: pip install --upgrade pip
+    echo Then run the install script again.
 )
 
 pause 
