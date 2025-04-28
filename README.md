@@ -18,51 +18,39 @@ A Retrieval-Augmented Generation (RAG) system for querying information from any 
    cd rag
    ```
 
-2. Install dependencies using your preferred method:
-
-   **Using pip**:
+2. Install dependencies and the CLI tool:
 
    ```
-   pip install -r requirements.txt
+   # Install in development mode (recommended)
+   pip install -e .
+
+   # Or install as a regular package
+   pip install .
    ```
 
-   **Using uv**:
-
-   ```
-   uv pip install -e .
-   ```
-
-3. Create a `.env` file in the project root with your xAI API key:
+3. Create a `.env` file in your working directory with your xAI API key:
    ```
    XAI_API_KEY="your-api-key-here"
    ```
 
 ## Usage
 
-### Basic Usage
+### CLI Command
 
-Run the application with default settings:
+After installation, you can use the `ragchat` command directly from your terminal:
 
-```
-python main.py
-```
-
-### Command Line Interface (CLI)
-
-The application supports command-line arguments for specifying documents to process:
-
-```
+```bash
 # Process all documents in a directory
-python main.py --dir /path/to/your/docs
+ragchat --dir /path/to/your/docs
 
 # Process specific files
-python main.py --files document1.txt document2.pdf notes.md
+ragchat --files document1.txt document2.pdf notes.md
 
 # Specify where to store the vector database
-python main.py --dir /path/to/docs --persist ./my_vector_db
+ragchat --dir /path/to/docs --persist ./my_vector_db
 
 # Specify conversation history file
-python main.py --dir /path/to/docs --history my_chat_history.pkl
+ragchat --dir /path/to/docs --history my_chat_history.pkl
 ```
 
 Available options:
@@ -71,6 +59,15 @@ Available options:
 - `--files`, `-f`: Specific files to process (space-separated)
 - `--persist`, `-p`: Directory to persist vector database (default: ./chroma_db)
 - `--history`: File to save conversation history (default: rag_conversation_history.pkl)
+
+### Python Module Usage
+
+You can also use the script directly if you prefer:
+
+```bash
+# Run the application with default settings
+python -m ragchat.cli
+```
 
 ### Interactive Chat
 
