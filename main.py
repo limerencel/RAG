@@ -1,5 +1,6 @@
 import getpass
 import os
+import argparse
 from typing import List, Dict, Any
 import warnings
 import time
@@ -296,14 +297,26 @@ class RAGChat:
 
 # Example usage - put your implementation here
 def main():
-    print("\n=== Starting RAG Application ===\n")
-    # Set up paths (modify these to your actual paths)
-    directory = r"./test_docs"  # Directory with documents (default to test docs)
-    persist_dir = "./chroma_db"         # Directory to persist vector database
-    history_file = "rag_conversation_history.pkl" # File to save conversation history
+    # Set up command line argument parser
+    parser = argparse.ArgumentParser(description='RAG Chat CLI - Chat with your documents using Retrieval-Augmented Generation')
+    parser.add_argument('--dir', '-d', type=str, help='Directory containing documents to process')
+    parser.add_argument('--files', '-f', nargs='+', help='Specific files to process (space-separated)')
+    parser.add_argument('--persist', '-p', type=str, default='./chroma_db', help='Directory to persist vector database')
+    parser.add_argument('--history', type=str, default='rag_conversation_history.pkl', help='File to save conversation history')
     
-    # Only create test directory and sample document if we're using the test directory
-    if directory == "./test_docs" and not os.path.exists(directory):
+    # Parse arguments
+    args = parser.parse_args()
+    
+    print("\n=== Starting RAG Application ===\n")
+    
+    # Set up paths based on arguments or defaults
+    directory = args.dir if args.dir else r"./test_docs"  # Directory with documents (default to test docs)
+    file_paths = args.files  # Specific files to process
+    persist_dir = args.persist  # Directory to persist vector database
+    history_file = args.history  # File to save conversation history
+    
+    # Only create test directory and sample document if we're using the test directory and no specific files
+    if directory == "./test_docs" and not os.path.exists(directory) and not file_paths:
         print(f"Creating test directory: {directory}")
         os.makedirs(directory)
         
@@ -336,14 +349,18 @@ You can ask questions about RAG and this system should retrieve this information
     
     # Choose one of these loading methods:
     try:
+        # Determine how to load documents based on args
+        if file_paths:
+            print(f"Loading specific files: {file_paths}")
+            docs = load_documents(file_paths=file_paths)
         # Load from directory
-        if os.path.exists(directory):
+        elif os.path.exists(directory):
             print(f"Loading documents from directory: {directory}")
             # Check if directory has content
             files = os.listdir(directory)
             if not files:
                 print(f"WARNING: Directory {directory} exists but is empty!")
-                print("Please check the directory path in main() function")
+                print("Please check the directory path or provide specific files with --files option")
                 return
             
             # Print some info about files being loaded
@@ -357,7 +374,7 @@ You can ask questions about RAG and this system should retrieve this information
             docs = load_documents(directory_path=directory)
         else:
             print(f"WARNING: Directory {directory} does not exist!")
-            print("Please check the directory path in main() function")
+            print("Please provide a valid directory with --dir or specific files with --files")
             return
         
         # Set up vector store

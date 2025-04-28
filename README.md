@@ -39,30 +39,54 @@ A Retrieval-Augmented Generation (RAG) system for querying information from any 
 
 ## Usage
 
-1. Update the `directory` variable in `main.py` to point to your document directory:
+### Basic Usage
 
-   ```python
-   directory = r"path/to/your/documents"  # Directory with your documents
-   ```
+Run the application with default settings:
 
-2. Run the application:
+```
+python main.py
+```
 
-   ```
-   python main.py
-   ```
+### Command Line Interface (CLI)
 
-3. The system will:
+The application supports command-line arguments for specifying documents to process:
 
-   - Load documents from the specified directory
-   - Process and embed them
-   - Save the vector database to `./chroma_db/`
-   - Launch an interactive chat interface
+```
+# Process all documents in a directory
+python main.py --dir /path/to/your/docs
 
-4. Available commands in the chat interface:
-   - Ask any question about the documents
-   - Type `history` to view conversation history
-   - Type `clear` to clear conversation history
-   - Type `exit` to quit the application
+# Process specific files
+python main.py --files document1.txt document2.pdf notes.md
+
+# Specify where to store the vector database
+python main.py --dir /path/to/docs --persist ./my_vector_db
+
+# Specify conversation history file
+python main.py --dir /path/to/docs --history my_chat_history.pkl
+```
+
+Available options:
+
+- `--dir`, `-d`: Directory containing documents to process
+- `--files`, `-f`: Specific files to process (space-separated)
+- `--persist`, `-p`: Directory to persist vector database (default: ./chroma_db)
+- `--history`: File to save conversation history (default: rag_conversation_history.pkl)
+
+### Interactive Chat
+
+The system will:
+
+- Load documents from the specified sources
+- Process and embed them
+- Save the vector database to the specified persistence directory
+- Launch an interactive chat interface
+
+Available commands in the chat interface:
+
+- Ask any question about the documents
+- Type `history` to view conversation history
+- Type `clear` to clear conversation history
+- Type `exit` to quit the application
 
 ## How It Works
 
