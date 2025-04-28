@@ -96,6 +96,46 @@ This RAG application follows these steps:
 5. **Querying**: Accepts user questions, finds relevant document chunks
 6. **Response Generation**: Uses Grok-3-Beta LLM to generate answers based on retrieved context
 
+## Important Note on File Handling and Vector Storage
+
+### How Files Are Processed
+
+When you add files to the RAG system, they are:
+
+1. Split into text chunks
+2. Converted to vector embeddings
+3. Stored in a Chroma vector database (SQLite file)
+
+### Vector Database Behavior
+
+- **Additive storage**: By default, new documents are added to the existing vector database when using the same `--persist` directory
+- **No automatic differentiation**: The system doesn't automatically distinguish between documents from different sessions
+- **Storage location**: Vectors are stored in `./chroma_db/` by default (or your custom location with `--persist`)
+
+### Avoiding Data Pollution
+
+To prevent mixing document sets or to manage different knowledge bases:
+
+1. **Use separate vector databases for different document sets**:
+
+   ```bash
+   # Financial documents in one database
+   ragchat --dir financial/ --persist ./financial_vectors
+
+   # Legal documents in a different database
+   ragchat --dir legal/ --persist ./legal_vectors
+   ```
+
+2. **Clear existing vectors before adding new documents**:
+
+   - Delete the vector database directory (e.g., `./chroma_db/`) before processing a new set of documents
+   - Or use a new directory with the `--persist` flag
+
+3. **For single-session use cases**:
+   - Use an ephemeral database by omitting the `--persist` flag (vectors will be stored in memory only)
+
+The vector database holds all information the LLM will use during retrieval - the original documents are not accessed again after processing.
+
 ## Customization
 
 - Change the chunk size in `load_documents()` function
