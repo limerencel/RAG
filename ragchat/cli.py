@@ -5,6 +5,8 @@ import sys
 from typing import List, Dict, Any
 import warnings
 import time
+import pickle
+import datetime
 warnings.filterwarnings('ignore')
 
 # Load environment variables from .env file
@@ -359,10 +361,6 @@ You can ask questions about RAG and this system should retrieve this information
     # Initialize the required components
     setup_api_key()
     import_langchain()
-    
-    # Import pickle and datetime after langchain imports to avoid any potential conflicts
-    import pickle
-    import datetime
     
     # Initialize the LLM
     model = init_llm()
