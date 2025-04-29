@@ -153,6 +153,38 @@ The system supports various file formats:
 
 - Text files (.txt)
 - PDFs (using PyPDFLoader)
+- EPUB files (using UnstructuredEPubLoader, **requires pandoc executable**)
 - Other document types (using UnstructuredFileLoader)
 
 You can extend the system to support additional file types by adding appropriate document loaders.
+
+---
+
+## Important Note: EPUB Support Requires Pandoc
+
+To process `.epub` files, the system uses the `pandoc` tool. You must have the **pandoc executable** installed and available in your system's `PATH`.
+
+- Installing `pypandoc` via pip is **not enough**; you need the actual pandoc program.
+
+### How to Install Pandoc
+
+- **Windows:**
+
+  1. Download the installer from [Pandoc Releases](https://github.com/jgm/pandoc/releases/latest)
+  2. Run the `.msi` installer and follow the prompts
+  3. Open a new terminal and run `pandoc --version` to verify installation
+
+- **macOS:**
+
+  ```sh
+  brew install pandoc
+  pandoc --version
+  ```
+
+- **Linux (Debian/Ubuntu):**
+  ```sh
+  sudo apt-get install pandoc
+  pandoc --version
+  ```
+
+If `pandoc --version` prints version info, you are ready to use `.epub` files with this system.
