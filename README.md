@@ -51,6 +51,11 @@ ragchat --dir /path/to/docs --persist ./my_vector_db
 
 # Specify conversation history file
 ragchat --dir /path/to/docs --history my_chat_history.pkl
+
+# Select embedding model size
+ragchat --dir /path/to/docs --model small   # Fastest, lowest memory (default)
+ragchat --dir /path/to/docs --model medium  # Better quality, moderate memory
+ragchat --dir /path/to/docs --model large   # Best quality, highest memory
 ```
 
 Available options:
@@ -59,6 +64,7 @@ Available options:
 - `--files`, `-f`: Specific files to process (space-separated)
 - `--persist`, `-p`: Directory to persist vector database (default: ./chroma_db)
 - `--history`: File to save conversation history (default: rag_conversation_history.pkl)
+- `--model`, `-m`: Embedding model size: `small` (default), `medium`, or `large`
 
 ### Python Module Usage
 
@@ -188,3 +194,11 @@ To process `.epub` files, the system uses the `pandoc` tool. You must have the *
   ```
 
 If `pandoc --version` prints version info, you are ready to use `.epub` files with this system.
+
+### Embedding Model Choices
+
+| Size   | Model Name        | Description                      |
+| ------ | ----------------- | -------------------------------- |
+| small  | all-MiniLM-L6-v2  | Fastest, lowest memory (default) |
+| medium | all-MiniLM-L12-v2 | Better quality, moderate memory  |
+| large  | all-mpnet-base-v2 | Best quality, highest memory     |
