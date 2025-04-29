@@ -69,10 +69,19 @@ def load_documents(file_paths=None, directory_path=None):
     documents = []
     
     if file_paths:
+        from langchain_community.document_loaders import TextLoader, UnstructuredEPubLoader, UnstructuredFileLoader, PyPDFLoader
         for file in file_paths:
             print(f"Loading file: {file}")
             try:
-                loader = TextLoader(file)
+                ext = os.path.splitext(file)[1].lower()
+                if ext == '.txt':
+                    loader = TextLoader(file)
+                elif ext == '.pdf':
+                    loader = PyPDFLoader(file)
+                elif ext == '.epub':
+                    loader = UnstructuredEPubLoader(file)
+                else:
+                    loader = UnstructuredFileLoader(file)
                 documents.extend(loader.load())
                 print(f"  - Loaded file: {file}")
             except Exception as e:
@@ -95,13 +104,15 @@ def load_documents(file_paths=None, directory_path=None):
                 # Try loading with a different extension if no txt files found
                 if len(all_files) > 0:
                     print("Trying to load files with other extensions...")
-                    from langchain_community.document_loaders import UnstructuredFileLoader, PyPDFLoader
                     for file in all_files[:5]:  # Try first 5 files
                         try:
                             ext = os.path.splitext(file)[1].lower()
                             print(f"Trying to load {file}")
                             if ext == '.pdf':
                                 loader = PyPDFLoader(file)
+                                documents.extend(loader.load())
+                            elif ext == '.epub':
+                                loader = UnstructuredEPubLoader(file)
                                 documents.extend(loader.load())
                             else:
                                 loader = UnstructuredFileLoader(file)
