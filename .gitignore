@@ -12,3 +12,5 @@ chroma_db
 test_docs
 .env
 rag_conversation_history.pkl
+learn
+scratchpad.md
