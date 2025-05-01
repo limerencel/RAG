@@ -36,7 +36,7 @@ def import_langchain():
     from langchain.chat_models import init_chat_model
     from langchain_community.document_loaders import TextLoader, DirectoryLoader
     from langchain.text_splitter import RecursiveCharacterTextSplitter
-    from langchain_community.embeddings import HuggingFaceEmbeddings
+    from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_community.vectorstores import Chroma
     from langchain.chains.combine_documents import create_stuff_documents_chain
     from langchain.chains import create_retrieval_chain
@@ -75,17 +75,74 @@ def load_documents(file_paths=None, directory_path=None):
             try:
                 ext = os.path.splitext(file)[1].lower()
                 if ext == '.txt':
-                    loader = TextLoader(file)
+                    # Add error handling and more verbose output for debugging
+                    try:
+                        # First check if file exists
+                        if not os.path.exists(file):
+                            print(f"ERROR: File {file} does not exist")
+                            continue
+                            
+                        # Check file encoding
+                        print(f"Attempting to load text file: {file}")
+                        with open(file, 'r', encoding='utf-8') as f:
+                            # Just try to read a bit to check if encoding works
+                            f.read(100)
+                            print(f"File encoding check passed for {file}")
+                        
+                        # Now try to load with TextLoader
+                        loader = TextLoader(file, encoding='utf-8')
+                        docs = loader.load()
+                        documents.extend(docs)
+                        print(f"  - Successfully loaded {len(docs)} document(s) from {file}")
+                    except UnicodeDecodeError:
+                        print(f"UTF-8 encoding failed for {file}, trying latin-1 encoding")
+                        try:
+                            loader = TextLoader(file, encoding='latin-1')
+                            docs = loader.load()
+                            documents.extend(docs)
+                            print(f"  - Successfully loaded {len(docs)} document(s) from {file} with latin-1 encoding")
+                        except Exception as e:
+                            print(f"ERROR loading {file} with latin-1 encoding: {str(e)}")
+                            import traceback
+                            traceback.print_exc()
+                    except Exception as e:
+                        print(f"ERROR loading text file {file}: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
                 elif ext == '.pdf':
-                    loader = PyPDFLoader(file)
+                    try:
+                        loader = PyPDFLoader(file)
+                        docs = loader.load()
+                        documents.extend(docs)
+                        print(f"  - Successfully loaded {len(docs)} pages from PDF: {file}")
+                    except Exception as e:
+                        print(f"ERROR loading PDF file {file}: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
                 elif ext == '.epub':
-                    loader = UnstructuredEPubLoader(file)
+                    try:
+                        loader = UnstructuredEPubLoader(file)
+                        docs = loader.load()
+                        documents.extend(docs)
+                        print(f"  - Successfully loaded {len(docs)} documents from EPUB: {file}")
+                    except Exception as e:
+                        print(f"ERROR loading EPUB file {file}: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
                 else:
-                    loader = UnstructuredFileLoader(file)
-                documents.extend(loader.load())
-                print(f"  - Loaded file: {file}")
+                    try:
+                        loader = UnstructuredFileLoader(file)
+                        docs = loader.load()
+                        documents.extend(docs)
+                        print(f"  - Successfully loaded {len(docs)} documents from {file}")
+                    except Exception as e:
+                        print(f"ERROR loading file {file}: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
             except Exception as e:
-                print(f"Error loading file {file}: {str(e)}")
+                print(f"ERROR processing file {file}: {str(e)}")
+                import traceback
+                traceback.print_exc()
     
     if directory_path:
         print(f"Loading documents from directory: {directory_path}")
@@ -149,14 +206,14 @@ def load_documents(file_paths=None, directory_path=None):
     return splits
 
 # Function to set up vector store
-def setup_vectorstore(documents, persist_directory=None):
+def setup_vectorstore(documents, persist_directory=None, embedding_model_name='all-MiniLM-L6-v2'):
     print("Setting up vector store with embeddings (this may take a while)...")
     start_time = time.time()
     
     # Use HuggingFace embeddings (no API key needed)
-    print("Initializing embedding model...")
+    print(f"Initializing embedding model: {embedding_model_name} ...")
     try:
-        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
         print("Embedding model initialized successfully")
     except Exception as e:
         print(f"Error initializing embedding model: {str(e)}")
@@ -325,6 +382,7 @@ def main():
     parser.add_argument('--files', '-f', nargs='+', help='Specific files to process (space-separated)')
     parser.add_argument('--persist', '-p', type=str, default='./chroma_db', help='Directory to persist vector database')
     parser.add_argument('--history', type=str, default='rag_conversation_history.pkl', help='File to save conversation history')
+    parser.add_argument('--model', '-m', type=str, choices=['small', 'medium', 'large'], default='small', help='Embedding model size: small (default), medium, or large')
     
     # Parse arguments
     args = parser.parse_args()
@@ -336,6 +394,7 @@ def main():
     file_paths = args.files  # Specific files to process
     persist_dir = args.persist  # Directory to persist vector database
     history_file = args.history  # File to save conversation history
+    embedding_size = args.model
     
     # Only create test directory and sample document if we're using the test directory and no specific files
     if directory == "./test_docs" and not os.path.exists(directory) and not file_paths:
@@ -376,6 +435,15 @@ You can ask questions about RAG and this system should retrieve this information
     # Initialize the LLM
     model = init_llm()
     
+    # Select embedding model name based on user choice
+    embedding_model_map = {
+        'small': 'all-MiniLM-L6-v2',
+        'medium': 'all-MiniLM-L12-v2',
+        'large': 'all-mpnet-base-v2',
+    }
+    embedding_model_name = embedding_model_map.get(embedding_size, 'all-MiniLM-L6-v2')
+    print(f"Using embedding model: {embedding_model_name} (size: {embedding_size})")
+    
     # Choose one of these loading methods:
     try:
         # Determine how to load documents based on args
@@ -406,8 +474,8 @@ You can ask questions about RAG and this system should retrieve this information
             print("Please provide a valid directory with --dir or specific files with --files")
             return
         
-        # Set up vector store
-        vectorstore = setup_vectorstore(docs, persist_directory=persist_dir)
+        # Set up vector store with selected embedding model
+        vectorstore = setup_vectorstore(docs, persist_directory=persist_dir, embedding_model_name=embedding_model_name)
         
         # Create RAG chain
         print("Creating RAG chain...")
