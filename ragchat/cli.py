@@ -12,6 +12,8 @@ warnings.filterwarnings('ignore')
 # Load environment variables from .env file
 from dotenv import load_dotenv
 
+from langchain.chains import ConversationalRetrievalChain
+
 def setup_api_key():
     """Set up the API key for xAI"""
     print("Loading environment variables from .env file...")
@@ -43,7 +45,7 @@ def import_langchain():
     from langchain_core.prompts import ChatPromptTemplate
     from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
     from langchain.memory import ConversationBufferMemory
-
+    
 # Define a custom display function that works in both Jupyter and standard Python
 def safe_display(content):
     try:
@@ -246,49 +248,6 @@ def setup_vectorstore(documents, persist_directory=None, embedding_model_name='a
     print(f"Vector store setup completed in {elapsed_time:.2f} seconds")
     return vectorstore
 
-# Function to create RAG chain
-def create_rag_chain(vectorstore, model):
-    print("Setting up retriever...")
-    try:
-        # Create retriever
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
-        print("Retriever set up successfully")
-    except Exception as e:
-        print(f"Error setting up retriever: {str(e)}")
-        raise
-    
-    # Create prompt template
-    print("Creating prompt template...")
-    general_docs_prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a helpful assistant that answers questions based on the provided documents.
-        Answer the question based ONLY on the following context from the documents. If you don't know or can't find the answer in the context, say so.
-        Be precise and cite specific information from the documents when possible.
-        
-        Context:
-        {context}"""),
-        ("human", "{input}")
-    ])
-    
-    # Create document chain
-    print("Creating document chain...")
-    try:
-        document_chain = create_stuff_documents_chain(model, general_docs_prompt)
-        print("Document chain created successfully")
-    except Exception as e:
-        print(f"Error creating document chain: {str(e)}")
-        raise
-    
-    # Create retrieval chain
-    print("Creating retrieval chain...")
-    try:
-        retrieval_chain = create_retrieval_chain(retriever, document_chain)
-        print("Retrieval chain created successfully")
-    except Exception as e:
-        print(f"Error creating retrieval chain: {str(e)}")
-        raise
-    
-    return retrieval_chain
-
 # Function to save conversation history
 def save_conversation(conversation_history, filename="conversation_history.pkl"):
     try:
@@ -308,11 +267,74 @@ def load_conversation(filename="conversation_history.pkl"):
         print(f"No saved conversation found at {filename}, starting new conversation.")
         return []
 
+# Convert saved conversation history format to LangChain message format
+def convert_to_langchain_messages(conversation_history):
+    """Convert our saved conversation history format to LangChain message objects"""
+    langchain_messages = []
+    for message in conversation_history:
+        role = message["role"]
+        content = message["content"]
+        
+        if role == "human":
+            langchain_messages.append(HumanMessage(content=content))
+        elif role == "assistant":
+            langchain_messages.append(AIMessage(content=content))
+    
+    return langchain_messages
+
+# Function to create RAG chain with memory
+def create_rag_chain(vectorstore, model, conversation_history=None):
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+    
+    # Create memory and load existing conversation if available
+    memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True
+    )
+    
+    # If we have existing conversation history, load it into memory
+    if conversation_history:
+        print(f"Loading {len(conversation_history)} messages into conversation memory")
+        # Convert our saved history format to LangChain message format
+        langchain_messages = convert_to_langchain_messages(conversation_history)
+        # Add each pair to memory
+        for i in range(0, len(langchain_messages), 2):
+            if i+1 < len(langchain_messages):  # Make sure we have a pair
+                human_msg = langchain_messages[i]
+                ai_msg = langchain_messages[i+1]
+                memory.chat_memory.add_user_message(human_msg.content)
+                memory.chat_memory.add_ai_message(ai_msg.content)
+    
+    # Create prompt template
+    print("Creating prompt template...")
+    general_docs_prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a helpful assistant. 
+        When answering questions, you should primarily rely on the provided user materials (context).
+        If the materials do not fully address the question, you may supplement your answer with your own general knowledge, 
+        but you must clearly indicate which parts are drawn from the materials and which are not. 
+        Your responses should be accurate, clear, fluent, and helpful—do not simply repeat the source mechanically.
+
+Context:
+{context}"""),
+        ("human", "{question}")
+    ])
+    
+    # Build a conversational RAG chain
+    conv_chain = ConversationalRetrievalChain.from_llm(
+        llm=model,
+        retriever=retriever,
+        memory=memory,
+        combine_docs_chain_kwargs={"prompt": general_docs_prompt},
+    )
+    
+    return conv_chain
+
 # Interactive RAG Chat
 class RAGChat:
-    def __init__(self, rag_chain, load_history=True, history_file="conversation_history.pkl"):
+    def __init__(self, model, vectorstore, load_history=True, history_file="conversation_history.pkl"):
         print("Initializing RAGChat class...")
-        self.rag_chain = rag_chain
+        self.model = model
+        self.vectorstore = vectorstore
         self.history_file = history_file
         
         try:
@@ -323,32 +345,40 @@ class RAGChat:
                 print("Starting with empty conversation history")
                 self.conversation_history = []
             print(f"Conversation history has {len(self.conversation_history)} messages")
+            
+            # Create RAG chain with loaded history
+            print("Creating RAG chain with conversation history...")
+            self.rag_chain = create_rag_chain(vectorstore, model, self.conversation_history)
+            print("RAG chain created successfully with history")
+            
         except Exception as e:
             print(f"Error loading conversation history: {str(e)}")
             self.conversation_history = []
+            self.rag_chain = create_rag_chain(vectorstore, model)
         
     def chat(self, query):
         print(f"Processing query: '{query}'")
         try:
             # Process query through RAG chain
             print("Sending query to RAG chain...")
-            response = self.rag_chain.invoke({"input": query})
+            result = self.rag_chain.invoke({"question": query})
+            answer = result["answer"]
             print("Received response from RAG chain")
             
             # Update conversation history
             print("Updating conversation history...")
             self.conversation_history.append({"role": "human", "content": query, "timestamp": datetime.datetime.now()})
-            self.conversation_history.append({"role": "assistant", "content": response["answer"], "timestamp": datetime.datetime.now()})
+            self.conversation_history.append({"role": "assistant", "content": answer, "timestamp": datetime.datetime.now()})
             
             # Save updated history
             print("Saving conversation history...")
             save_conversation(self.conversation_history, self.history_file)
             
             # Print the response directly for terminal users
-            print("\n\033[1mAssistant:\033[0m", response["answer"])
+            print("\n\033[1mAssistant:\033[0m", answer)
             
             # Return response
-            return response["answer"]
+            return answer
         except Exception as e:
             error_msg = f"Error processing query: {str(e)}"
             print(error_msg)
@@ -374,6 +404,15 @@ class RAGChat:
                     safe_display(f"**Assistant ({timestamp}):** {content}")
         except Exception as e:
             print(f"Error displaying conversation history: {str(e)}")
+    
+    def clear_history(self):
+        """Clear the conversation history and reset the RAG chain memory"""
+        self.conversation_history = []
+        save_conversation(self.conversation_history, self.history_file)
+        
+        # Create a fresh RAG chain with empty memory
+        self.rag_chain = create_rag_chain(self.vectorstore, self.model)
+        print("Conversation history cleared and memory reset.")
 
 def main():
     # Set up command line argument parser
@@ -398,35 +437,8 @@ def main():
     
     # Only create test directory and sample document if we're using the test directory and no specific files
     if directory == "./test_docs" and not os.path.exists(directory) and not file_paths:
-        print(f"Creating test directory: {directory}")
-        os.makedirs(directory)
-        
-        # Create a sample document for testing
-        sample_doc = os.path.join(directory, "sample.txt")
-        print(f"Creating sample document: {sample_doc}")
-        with open(sample_doc, "w") as f:
-            f.write("""# Sample Document for RAG Testing
-            
-This is a sample document for testing Retrieval-Augmented Generation.
-
-## Key Information
-
-- RAG combines retrieval with generation
-- It helps ground LLM responses in factual information
-- This approach reduces hallucinations
-- The implementation uses a vector database for semantic search
-
-## Technical Details
-
-The architecture consists of these components:
-1. Document loading and chunking
-2. Embedding generation
-3. Vector database storage
-4. Retrieval mechanism
-5. Response generation
-
-You can ask questions about RAG and this system should retrieve this information.
-""")
+        print("No documents specified. Please provide a directory with --dir or specific files with --files.")
+        return 1
     
     # Initialize the required components
     setup_api_key()
@@ -477,14 +489,9 @@ You can ask questions about RAG and this system should retrieve this information
         # Set up vector store with selected embedding model
         vectorstore = setup_vectorstore(docs, persist_directory=persist_dir, embedding_model_name=embedding_model_name)
         
-        # Create RAG chain
-        print("Creating RAG chain...")
-        rag_chain = create_rag_chain(vectorstore, model)
-        print("RAG chain created successfully")
-        
-        # Initialize chat
+        # Initialize chat (now passing model and vectorstore directly)
         print("Initializing chat interface...")
-        chat = RAGChat(rag_chain, load_history=True, history_file=history_file)
+        chat = RAGChat(model, vectorstore, load_history=True, history_file=history_file)
         
         # Display existing conversation with a header
         if len(chat.conversation_history) > 0:
@@ -516,9 +523,7 @@ You can ask questions about RAG and this system should retrieve this information
                 print("="*50)
                 continue
             elif user_input.lower() == 'clear':
-                chat.conversation_history = []
-                save_conversation(chat.conversation_history, history_file)
-                print("Conversation history cleared.")
+                chat.clear_history()  # Use the new method that also resets the chain
                 continue
             elif not user_input.strip():
                 continue
@@ -541,4 +546,4 @@ You can ask questions about RAG and this system should retrieve this information
 def cli_main():
     """Entry point for the CLI command"""
     print("Starting RAGChat CLI...")
-    sys.exit(main()) 
+    sys.exit(main())
